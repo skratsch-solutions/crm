@@ -1,5 +1,5 @@
 <template>
-  <div class="space-y-1.5">
+  <div class="space-y-1.5 p-[2px] -m-[2px]">
     <label class="block" :class="labelClasses" v-if="attrs.label">
       {{ __(attrs.label) }}
     </label>
@@ -34,7 +34,7 @@
             variant="ghost"
             class="w-full !justify-start"
             :label="__('Create New')"
-            @click="attrs.onCreate(value, close)"
+            @click="() => attrs.onCreate(value, close)"
           >
             <template #prefix>
               <FeatherIcon name="plus" class="h-4" />
@@ -68,6 +68,10 @@ const props = defineProps({
   doctype: {
     type: String,
     required: true,
+  },
+  filters: {
+    type: [Array, String],
+    default: [],
   },
   modelValue: {
     type: String,
@@ -106,13 +110,13 @@ watchDebounced(
     text.value = val
     reload(val)
   },
-  { debounce: 300, immediate: true }
+  { debounce: 300, immediate: true },
 )
 
 watchDebounced(
   () => props.doctype,
   () => reload(''),
-  { debounce: 300, immediate: true }
+  { debounce: 300, immediate: true },
 )
 
 const options = createResource({
@@ -122,6 +126,7 @@ const options = createResource({
   params: {
     txt: text.value,
     doctype: props.doctype,
+    filters: props.filters,
   },
   transform: (data) => {
     let allData = data.map((option) => {
@@ -152,6 +157,7 @@ function reload(val) {
     params: {
       txt: val,
       doctype: props.doctype,
+      filters: props.filters,
     },
   })
   options.reload()
@@ -168,7 +174,7 @@ const labelClasses = computed(() => {
       sm: 'text-xs',
       md: 'text-base',
     }[attrs.size || 'sm'],
-    'text-gray-600',
+    'text-ink-gray-5',
   ]
 })
 </script>

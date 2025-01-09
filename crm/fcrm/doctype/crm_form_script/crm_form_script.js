@@ -8,7 +8,33 @@ frappe.ui.form.on("CRM Form Script", {
 				istable: 0,
 			},
 		});
+
+		if (frm.doc.is_standard && !frappe.boot.developer_mode) {
+			frm.disable_form();
+			frappe.show_alert(
+				__(
+					"Standard Form Scripts can not be modified, duplicate the Form Script instead."
+				)
+			);
+		}
+
+		if (!frappe.boot.developer_mode) {
+			frm.toggle_enable("is_standard", 0);
+		}
+
+		frm.trigger("add_enable_button");
 	},
+
+	add_enable_button(frm) {
+		frm.add_custom_button(
+			frm.doc.enabled ? __("Disable") : __("Enable"),
+			() => {
+				frm.set_value("enabled", !frm.doc.enabled);
+				frm.save();
+			}
+		);
+	},
+
 	view(frm) {
 		let has_form_boilerplate = frm.doc.script.includes(
 			"function setupForm("
@@ -22,6 +48,7 @@ frappe.ui.form.on("CRM Form Script", {
 function setupForm({ doc }) {
 	return {
 		actions: [],
+		statuses: [],
 	}
 }`.trim();
 		}

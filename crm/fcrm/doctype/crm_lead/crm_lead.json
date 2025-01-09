@@ -107,8 +107,7 @@
   {
    "fieldname": "website",
    "fieldtype": "Data",
-   "label": "Website",
-   "options": "URL"
+   "label": "Website"
   },
   {
    "fieldname": "mobile_no",
@@ -291,7 +290,7 @@
  "image_field": "image",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-02-05 00:58:07.321058",
+ "modified": "2025-01-02 22:14:01.991054",
  "modified_by": "Administrator",
  "module": "FCRM",
  "name": "CRM Lead",
@@ -321,10 +320,20 @@
    "role": "Sales Manager",
    "share": 1,
    "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "All",
+   "share": 1
   }
  ],
  "sender_field": "email",
  "sender_name_field": "first_name",
+ "show_title_field_in_link": 1,
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],

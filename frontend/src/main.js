@@ -1,9 +1,13 @@
 import './index.css'
 
 import { createApp } from 'vue'
-import router from './router'
-import App from './App.vue'
 import { createPinia } from 'pinia'
+import { createDialog } from './utils/dialogs'
+import { initSocket } from './socket'
+import router from './router'
+import translationPlugin from './translation'
+import { posthogPlugin } from './telemetry'
+import App from './App.vue'
 
 import {
   FrappeUI,
@@ -19,9 +23,6 @@ import {
   frappeRequest,
   FeatherIcon,
 } from 'frappe-ui'
-import translationPlugin from './translation'
-import { createDialog } from './utils/dialogs'
-import { initSocket } from './socket'
 
 let globalComponents = {
   Button,
@@ -45,6 +46,7 @@ app.use(FrappeUI)
 app.use(pinia)
 app.use(router)
 app.use(translationPlugin)
+app.use(posthogPlugin)
 for (let key in globalComponents) {
   app.component(key, globalComponents[key])
 }
@@ -61,7 +63,7 @@ if (import.meta.env.DEV) {
       socket = initSocket()
       app.config.globalProperties.$socket = socket
       app.mount('#app')
-    }
+    },
   )
 } else {
   socket = initSocket()

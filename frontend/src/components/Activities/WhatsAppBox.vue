@@ -4,12 +4,12 @@
     class="flex items-center justify-around gap-2 px-3 pt-2 sm:px-10"
   >
     <div
-      class="mb-1 ml-13 flex-1 cursor-pointer rounded border-0 border-l-4 border-green-500 bg-gray-100 p-2 text-base text-gray-600"
+      class="mb-1 ml-13 flex-1 cursor-pointer rounded border-0 border-l-4 border-green-500 bg-surface-gray-2 p-2 text-base text-ink-gray-5"
       :class="reply.type == 'Incoming' ? 'border-green-500' : 'border-blue-400'"
     >
       <div
         class="mb-1 text-sm font-bold"
-        :class="reply.type == 'Incoming' ? 'text-green-500' : 'text-blue-400'"
+        :class="reply.type == 'Incoming' ? 'text-ink-green-2' : 'text-ink-blue-link'"
       >
         {{ reply.from_name || __('You') }}
       </div>
@@ -26,7 +26,7 @@
             <Dropdown :options="uploadOptions(openFileSelector)">
               <FeatherIcon
                 name="plus"
-                class="size-4.5 cursor-pointer text-gray-600"
+                class="size-4.5 cursor-pointer text-ink-gray-5"
               />
             </Dropdown>
           </div>
@@ -38,18 +38,19 @@
         @update:modelValue="
           () => {
             content += emoji
-            $refs.textarea.$el.focus()
+            $refs.textareaRef.el.focus()
+            capture('whatsapp_emoji_added')
           }
         "
       >
         <SmileIcon
           @click="togglePopover"
-          class="flex size-4.5 cursor-pointer rounded-sm text-xl leading-none text-gray-500"
+          class="flex size-4.5 cursor-pointer rounded-sm text-xl leading-none text-ink-gray-4"
         />
       </IconPicker>
     </div>
     <Textarea
-      ref="textarea"
+      ref="textareaRef"
       type="textarea"
       class="min-h-8 w-full"
       :rows="rows"
@@ -57,7 +58,7 @@
       :placeholder="placeholder"
       @focus="rows = 6"
       @blur="rows = 1"
-      @keydown.enter="(e) => sendTextMessage(e)"
+      @keydown.enter.stop="(e) => sendTextMessage(e)"
     />
   </div>
 </template>
@@ -65,8 +66,8 @@
 <script setup>
 import IconPicker from '@/components/IconPicker.vue'
 import SmileIcon from '@/components/Icons/SmileIcon.vue'
+import { capture } from '@/telemetry'
 import { createResource, Textarea, FileUploader, Dropdown } from 'frappe-ui'
-import FeatherIcon from 'frappe-ui/src/components/FeatherIcon.vue'
 import { ref, nextTick, watch } from 'vue'
 
 const props = defineProps({
@@ -77,7 +78,7 @@ const doc = defineModel()
 const whatsapp = defineModel('whatsapp')
 const reply = defineModel('reply')
 const rows = ref(1)
-const textarea = ref(null)
+const textareaRef = ref(null)
 const emoji = ref('')
 
 const content = ref('')
@@ -85,20 +86,22 @@ const placeholder = ref(__('Type your message here...'))
 const fileType = ref('')
 
 function show() {
-  nextTick(() => textarea.value.$el.focus())
+  nextTick(() => textareaRef.value.el.focus())
 }
 
 function uploadFile(file) {
   whatsapp.value.attach = file.file_url
   whatsapp.value.content_type = fileType.value
   sendWhatsAppMessage()
+  capture('whatsapp_upload_file')
 }
 
 function sendTextMessage(event) {
   if (event.shiftKey) return
   sendWhatsAppMessage()
-  textarea.value.$el.blur()
+  textareaRef.value.el?.blur()
   content.value = ''
+  capture('whatsapp_send_message')
 }
 
 async function sendWhatsAppMessage() {

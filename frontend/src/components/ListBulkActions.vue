@@ -19,8 +19,9 @@
 <script setup>
 import EditValueModal from '@/components/Modals/EditValueModal.vue'
 import AssignmentModal from '@/components/Modals/AssignmentModal.vue'
-import { setupListActions, createToast } from '@/utils'
+import { setupListCustomizations, createToast } from '@/utils'
 import { globalStore } from '@/stores/global'
+import { capture } from '@/telemetry'
 import { call } from 'frappe-ui'
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
@@ -44,7 +45,7 @@ const list = defineModel()
 
 const router = useRouter()
 
-const { $dialog } = globalStore()
+const { $dialog, $socket } = globalStore()
 
 const showEditModal = ref(false)
 const selectedValues = ref([])
@@ -54,6 +55,40 @@ function editValues(selections, unselectAll) {
   selectedValues.value = selections
   showEditModal.value = true
   unselectAllAction.value = unselectAll
+}
+
+function convertToDeal(selections, unselectAll) {
+  $dialog({
+    title: __('Convert to Deal'),
+    message: __('Are you sure you want to convert {0} Lead(s) to Deal(s)?', [
+      selections.size,
+    ]),
+    variant: 'solid',
+    theme: 'blue',
+    actions: [
+      {
+        label: __('Convert'),
+        variant: 'solid',
+        onClick: (close) => {
+          capture('bulk_convert_to_deal')
+          Array.from(selections).forEach((name) => {
+            call('crm.fcrm.doctype.crm_lead.crm_lead.convert_to_deal', {
+              lead: name,
+            }).then(() => {
+              createToast({
+                title: __('Converted successfully'),
+                icon: 'check',
+                iconClasses: 'text-ink-green-3',
+              })
+              list.value.reload()
+              unselectAll()
+              close()
+            })
+          })
+        },
+      },
+    ],
+  })
 }
 
 function deleteValues(selections, unselectAll) {
@@ -70,6 +105,7 @@ function deleteValues(selections, unselectAll) {
         variant: 'solid',
         theme: 'red',
         onClick: (close) => {
+          capture('bulk_delete')
           call('frappe.desk.reportview.delete_items', {
             items: JSON.stringify(Array.from(selections)),
             doctype: props.doctype,
@@ -77,7 +113,7 @@ function deleteValues(selections, unselectAll) {
             createToast({
               title: __('Deleted successfully'),
               icon: 'check',
-              iconClasses: 'text-green-600',
+              iconClasses: 'text-ink-green-3',
             })
             unselectAll()
             list.value.reload()
@@ -112,6 +148,7 @@ function clearAssignemnts(selections, unselectAll) {
         variant: 'solid',
         theme: 'red',
         onClick: (close) => {
+          capture('bulk_clear_assignment')
           call('frappe.desk.form.assign_to.remove_multiple', {
             doctype: props.doctype,
             names: JSON.stringify(Array.from(selections)),
@@ -120,7 +157,7 @@ function clearAssignemnts(selections, unselectAll) {
             createToast({
               title: __('Assignment cleared successfully'),
               icon: 'check',
-              iconClasses: 'text-green-600',
+              iconClasses: 'text-ink-green-3',
             })
             reload(unselectAll)
             close()
@@ -162,6 +199,13 @@ function bulkActions(selections, unselectAll) {
     })
   }
 
+  if (props.doctype === 'CRM Lead') {
+    actions.push({
+      label: __('Convert to Deal'),
+      onClick: () => convertToDeal(selections, unselectAll),
+    })
+  }
+
   customBulkActions.value.forEach((action) => {
     actions.push({
       label: __(action.label),
@@ -186,17 +230,20 @@ function reload(unselectAll) {
   list.value?.reload()
 }
 
-onMounted(() => {
+onMounted(async () => {
   if (!list.value?.data) return
-  setupListActions(list.value.data, {
+  let customization = await setupListCustomizations(list.value.data, {
     list: list.value,
     call,
     createToast,
     $dialog,
+    $socket,
     router,
   })
-  customBulkActions.value = list.value?.data?.bulkActions || []
-  customListActions.value = list.value?.data?.listActions || []
+  customBulkActions.value =
+    customization?.bulkActions || list.value?.data?.bulkActions || []
+  customListActions.value =
+    customization?.actions || list.value?.data?.listActions || []
 })
 
 defineExpose({

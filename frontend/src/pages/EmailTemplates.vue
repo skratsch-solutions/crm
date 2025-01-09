@@ -1,7 +1,7 @@
 <template>
   <LayoutHeader>
     <template #left-header>
-      <Breadcrumbs :items="breadcrumbs" />
+      <ViewBreadcrumbs v-model="viewControls" routeName="Email Templates" />
     </template>
     <template #right-header>
       <CustomActions
@@ -11,7 +11,7 @@
       <Button
         variant="solid"
         :label="__('Create')"
-        @click="showEmailTemplateModal = true"
+        @click="() => showEmailTemplate()"
       >
         <template #prefix><FeatherIcon name="plus" class="h-4" /></template>
       </Button>
@@ -51,11 +51,11 @@
     class="flex h-full items-center justify-center"
   >
     <div
-      class="flex flex-col items-center gap-3 text-xl font-medium text-gray-500"
+      class="flex flex-col items-center gap-3 text-xl font-medium text-ink-gray-4"
     >
       <Email2Icon class="h-10 w-10" />
       <span>{{ __('No {0} Found', [__('Email Templates')]) }}</span>
-      <Button :label="__('Create')" @click="showEmailTemplateModal = true">
+      <Button :label="__('Create')" @click="() => showEmailTemplate()">
         <template #prefix><FeatherIcon name="plus" class="h-4" /></template>
       </Button>
     </div>
@@ -68,19 +68,19 @@
 </template>
 
 <script setup>
+import ViewBreadcrumbs from '@/components/ViewBreadcrumbs.vue'
 import CustomActions from '@/components/CustomActions.vue'
 import Email2Icon from '@/components/Icons/Email2Icon.vue'
 import LayoutHeader from '@/components/LayoutHeader.vue'
 import ViewControls from '@/components/ViewControls.vue'
 import EmailTemplatesListView from '@/components/ListViews/EmailTemplatesListView.vue'
 import EmailTemplateModal from '@/components/Modals/EmailTemplateModal.vue'
-import { dateFormat, dateTooltipFormat, timeAgo } from '@/utils'
-import { Breadcrumbs } from 'frappe-ui'
+import { getMeta } from '@/stores/meta'
+import { formatDate, timeAgo } from '@/utils'
 import { computed, ref } from 'vue'
 
-const breadcrumbs = [
-  { label: __('Email Templates'), route: { name: 'Email Templates' } },
-]
+const { getFormattedPercent, getFormattedFloat, getFormattedCurrency } =
+  getMeta('Email Template')
 
 const emailTemplatesListView = ref(null)
 
@@ -102,9 +102,38 @@ const rows = computed(() => {
     emailTemplates.value?.data.rows.forEach((row) => {
       _rows[row] = emailTemplate[row]
 
+      let fieldType = emailTemplates.value?.data.columns?.find(
+        (col) => (col.key || col.value) == row,
+      )?.type
+
+      if (
+        fieldType &&
+        ['Date', 'Datetime'].includes(fieldType) &&
+        !['modified', 'creation'].includes(row)
+      ) {
+        _rows[row] = formatDate(
+          emailTemplate[row],
+          '',
+          true,
+          fieldType == 'Datetime',
+        )
+      }
+
+      if (fieldType && fieldType == 'Currency') {
+        _rows[row] = getFormattedCurrency(row, emailTemplate)
+      }
+
+      if (fieldType && fieldType == 'Float') {
+        _rows[row] = getFormattedFloat(row, emailTemplate)
+      }
+
+      if (fieldType && fieldType == 'Percent') {
+        _rows[row] = getFormattedPercent(row, emailTemplate)
+      }
+
       if (['modified', 'creation'].includes(row)) {
         _rows[row] = {
-          label: dateFormat(emailTemplate[row], dateTooltipFormat),
+          label: formatDate(emailTemplate[row]),
           timeAgo: timeAgo(emailTemplate[row]),
         }
       }
@@ -115,28 +144,32 @@ const rows = computed(() => {
 
 const showEmailTemplateModal = ref(false)
 
-const emailTemplate = ref({
-  subject: '',
-  response: '',
-  response_html: '',
-  name: '',
-  enabled: 1,
-  use_html: 0,
-  owner: '',
-  reference_doctype: 'CRM Deal',
-})
+const emailTemplate = ref({})
 
 function showEmailTemplate(name) {
-  let et = rows.value?.find((row) => row.name === name)
-  emailTemplate.value = {
-    subject: et.subject,
-    response: et.response,
-    response_html: et.response_html,
-    name: et.name,
-    enabled: et.enabled,
-    use_html: et.use_html,
-    owner: et.owner,
-    reference_doctype: et.reference_doctype,
+  if (!name) {
+    emailTemplate.value = {
+      subject: '',
+      response: '',
+      response_html: '',
+      name: '',
+      enabled: 1,
+      use_html: 0,
+      owner: '',
+      reference_doctype: 'CRM Deal',
+    }
+  } else {
+    let et = rows.value?.find((row) => row.name === name)
+    emailTemplate.value = {
+      subject: et.subject,
+      response: et.response,
+      response_html: et.response_html,
+      name: et.name,
+      enabled: et.enabled,
+      use_html: et.use_html,
+      owner: et.owner,
+      reference_doctype: et.reference_doctype,
+    }
   }
   showEmailTemplateModal.value = true
 }

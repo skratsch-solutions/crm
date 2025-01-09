@@ -4,14 +4,21 @@
     :columns="columns"
     :rows="rows"
     :options="{
-      getRowRoute: (row) => ({ name: 'Lead', params: { leadId: row.name } }),
+      getRowRoute: (row) => ({
+        name: 'Lead',
+        params: { leadId: row.name },
+        query: { view: route.query.view, viewType: route.params.viewType },
+      }),
       selectable: options.selectable,
       showTooltip: options.showTooltip,
       resizeColumn: options.resizeColumn,
     }"
     row-key="name"
   >
-    <ListHeader class="sm:mx-5 mx-3" @columnWidthUpdated="emit('columnWidthUpdated')">
+    <ListHeader
+      class="sm:mx-5 mx-3"
+      @columnWidthUpdated="emit('columnWidthUpdated')"
+    >
       <ListHeaderItem
         v-for="column in columns"
         :key="column.key"
@@ -29,7 +36,11 @@
         </Button>
       </ListHeaderItem>
     </ListHeader>
-    <ListRows :rows="rows" v-slot="{ idx, column, item, row }">
+    <ListRows
+      :rows="rows"
+      v-slot="{ idx, column, item, row }"
+      doctype="CRM Lead"
+    >
       <div v-if="column.key === '_assign'" class="flex items-center">
         <MultipleAvatar
           :avatars="item"
@@ -46,7 +57,7 @@
           "
         />
       </div>
-      <ListRowItem v-else :item="item">
+      <ListRowItem v-else :item="item" :align="column.align">
         <template #prefix>
           <div v-if="column.key === 'status'">
             <IndicatorIcon :class="item.color" />
@@ -62,10 +73,10 @@
           </div>
           <div v-else-if="column.key === 'organization'">
             <Avatar
-              v-if="item.label"
+              v-if="item"
               class="flex items-center"
-              :image="item.logo"
-              :label="item.label"
+              :image="item"
+              :label="item"
               size="sm"
             />
           </div>
@@ -152,7 +163,7 @@
               type="checkbox"
               :modelValue="item"
               :disabled="true"
-              class="text-gray-900"
+              class="text-ink-gray-9"
             />
           </div>
           <div
@@ -217,6 +228,7 @@ import {
 } from 'frappe-ui'
 import { sessionStore } from '@/stores/session'
 import { ref, computed, watch } from 'vue'
+import { useRoute } from 'vue-router'
 
 const props = defineProps({
   rows: {
@@ -248,6 +260,8 @@ const emit = defineEmits([
   'likeDoc',
 ])
 
+const route = useRoute()
+
 const pageLengthCount = defineModel()
 const list = defineModel('list')
 
@@ -273,7 +287,7 @@ const listBulkActionsRef = ref(null)
 
 defineExpose({
   customListActions: computed(
-    () => listBulkActionsRef.value?.customListActions
+    () => listBulkActionsRef.value?.customListActions,
   ),
 })
 </script>

@@ -1,7 +1,7 @@
 <template>
   <LayoutHeader>
     <template #left-header>
-      <Breadcrumbs :items="breadcrumbs" />
+      <ViewBreadcrumbs v-model="viewControls" routeName="Organizations" />
     </template>
     <template #right-header>
       <CustomActions
@@ -50,7 +50,7 @@
     class="flex h-full items-center justify-center"
   >
     <div
-      class="flex flex-col items-center gap-3 text-xl font-medium text-gray-500"
+      class="flex flex-col items-center gap-3 text-xl font-medium text-ink-gray-4"
     >
       <OrganizationsIcon class="h-10 w-10" />
       <span>{{ __('No {0} Found', [__('Organizations')]) }}</span>
@@ -61,59 +61,42 @@
   </div>
   <OrganizationModal
     v-model="showOrganizationModal"
-    v-model:quickEntry="showQuickEntryModal"
+    v-model:showQuickEntryModal="showQuickEntryModal"
+    @openAddressModal="(_address) => openAddressModal(_address)"
   />
   <QuickEntryModal
     v-if="showQuickEntryModal"
     v-model="showQuickEntryModal"
     doctype="CRM Organization"
   />
+  <AddressModal v-model="showAddressModal" v-model:address="address" />
 </template>
 <script setup>
+import ViewBreadcrumbs from '@/components/ViewBreadcrumbs.vue'
 import CustomActions from '@/components/CustomActions.vue'
 import OrganizationsIcon from '@/components/Icons/OrganizationsIcon.vue'
 import LayoutHeader from '@/components/LayoutHeader.vue'
 import OrganizationModal from '@/components/Modals/OrganizationModal.vue'
-import QuickEntryModal from '@/components/Settings/QuickEntryModal.vue'
+import QuickEntryModal from '@/components/Modals/QuickEntryModal.vue'
+import AddressModal from '@/components/Modals/AddressModal.vue'
 import OrganizationsListView from '@/components/ListViews/OrganizationsListView.vue'
 import ViewControls from '@/components/ViewControls.vue'
-import { Breadcrumbs } from 'frappe-ui'
-import {
-  dateFormat,
-  dateTooltipFormat,
-  timeAgo,
-  formatNumberIntoCurrency,
-} from '@/utils'
+import { getMeta } from '@/stores/meta'
+import { formatDate, timeAgo, website } from '@/utils'
+import { call } from 'frappe-ui'
 import { ref, computed } from 'vue'
-import { useRoute } from 'vue-router'
 
-const route = useRoute()
+const { getFormattedPercent, getFormattedFloat, getFormattedCurrency } =
+  getMeta('CRM Organization')
 
 const organizationsListView = ref(null)
 const showOrganizationModal = ref(false)
 const showQuickEntryModal = ref(false)
-
-const currentOrganization = computed(() => {
-  return organizations.value?.data?.data?.find(
-    (organization) => organization.name === route.params.organizationId,
-  )
-})
-
-const breadcrumbs = computed(() => {
-  let items = [{ label: __('Organizations'), route: { name: 'Organizations' } }]
-  if (!currentOrganization.value) return items
-  items.push({
-    label: __(currentOrganization.value.name),
-    route: {
-      name: 'Organization',
-      params: { organizationId: currentOrganization.value.name },
-    },
-  })
-  return items
-})
+const showAddressModal = ref(false)
 
 // organizations data is loaded in the ViewControls component
 const organizations = ref({})
+const address = ref({})
 const loadMore = ref(1)
 const triggerResize = ref(1)
 const updatedPageCount = ref(20)
@@ -130,6 +113,35 @@ const rows = computed(() => {
     organizations.value?.data.rows.forEach((row) => {
       _rows[row] = organization[row]
 
+      let fieldType = organizations.value?.data.columns?.find(
+        (col) => (col.key || col.value) == row,
+      )?.type
+
+      if (
+        fieldType &&
+        ['Date', 'Datetime'].includes(fieldType) &&
+        !['modified', 'creation'].includes(row)
+      ) {
+        _rows[row] = formatDate(
+          organization[row],
+          '',
+          true,
+          fieldType == 'Datetime',
+        )
+      }
+
+      if (fieldType && fieldType == 'Currency') {
+        _rows[row] = getFormattedCurrency(row, organization)
+      }
+
+      if (fieldType && fieldType == 'Float') {
+        _rows[row] = getFormattedFloat(row, organization)
+      }
+
+      if (fieldType && fieldType == 'Percent') {
+        _rows[row] = getFormattedPercent(row, organization)
+      }
+
       if (row === 'organization_name') {
         _rows[row] = {
           label: organization.organization_name,
@@ -137,14 +149,9 @@ const rows = computed(() => {
         }
       } else if (row === 'website') {
         _rows[row] = website(organization.website)
-      } else if (row === 'annual_revenue') {
-        _rows[row] = formatNumberIntoCurrency(
-          organization.annual_revenue,
-          organization.currency,
-        )
       } else if (['modified', 'creation'].includes(row)) {
         _rows[row] = {
-          label: dateFormat(organization[row], dateTooltipFormat),
+          label: formatDate(organization[row]),
           timeAgo: __(timeAgo(organization[row])),
         }
       }
@@ -153,7 +160,14 @@ const rows = computed(() => {
   })
 })
 
-function website(url) {
-  return url && url.replace(/^(?:https?:\/\/)?(?:www\.)?/i, '')
+async function openAddressModal(_address) {
+  if (_address) {
+    _address = await call('frappe.client.get', {
+      doctype: 'Address',
+      name: _address,
+    })
+  }
+  showAddressModal.value = true
+  address.value = _address || {}
 }
 </script>
